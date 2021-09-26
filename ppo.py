@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Categorical
-import wandb
 
 class PPO(nn.Module):
     def __init__(self):
@@ -84,10 +83,9 @@ class PPO(nn.Module):
             loss = -torch.min(surr1, surr2) + F.smooth_l1_loss(td_target.detach(),self.v(s))
 
             self.optimizer.zero_grad() 
-            # loss가 scalar값이 아닐 때 mean() 
+            # loss가 scalar가 아닐 때 mean() 
             loss.mean().backward()
             self.optimizer.step()
-        wandb.log({'loss':loss})
 
 def main():
     env = gym.make('CartPole-v1')
