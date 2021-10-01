@@ -79,7 +79,7 @@ class PPO(nn.Module):
             surr2 = torch.clamp(ratio, 1-self.eps, 1+self.eps) * advantage
             # td_target.detach()를 해줘야함
             # detach()의 의미는 gradient 를 계산하지 않는 것 -> 즉, 학습하지 않는 것
-            # td_target과 v를 둘 다 학습하는 것이 아니라 v만 학습하는 것! 
+            # td_target과 v를 둘 다 학습하는 것이 아니라 v만 학습하는 것
             loss = -torch.min(surr1, surr2) + F.smooth_l1_loss(td_target.detach(),self.v(s))
 
             self.optimizer.zero_grad() 
