@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-#Hyperparameters
+
 learning_rate = 0.0005
 gamma         = 0.98
 buffer_limit  = 50000

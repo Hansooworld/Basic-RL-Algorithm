@@ -14,11 +14,13 @@ import time
 buffer_limit = 500000
 lr_q = 0.0003
 lr_pi = 0.0003
+lr_alpha = 0.0003
 gamma = 0.99
 batch_size = 256
-lr_alpha = 0.0003
 init_alpha = 0.1
 tau = 0.005
+# 8개의 action에 대해 나중에 mean() 해주기 때문에
+# 논문 parameter에 나온대로 -dim(A)로 설정해주지 않음
 target_entropy = -1
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -55,13 +57,14 @@ class ReplayBuffer():
 class Actor(nn.Module):
     def __init__(self, learning_rate):
         super(Actor,self).__init__()
+        # Gaussian Distribution 이용할 것
         self.fc1 = nn.Linear(28,256)
         self.fc2 = nn.Linear(256,256)
         self.fc_mean = nn.Linear(256,8)
         self.fc_std = nn.Linear(256,8)
         self.optimizer = optim.Adam(self.parameters(),lr=learning_rate)
 
-        # adjust the temperature(alpha) automatically
+        # Autotuning Alpha
         self.log_alpha = torch.tensor(np.log(init_alpha))
         self.log_alpha.requires_grad = True
         self.log_alpha_optimizer = optim.Adam([self.log_alpha],lr = lr_alpha)  
@@ -72,9 +75,10 @@ class Actor(nn.Module):
         mean = self.fc_mean(x)
         # std는 정의상 양수가 되어야하므로 softplus나 ReLU같은 activate function 활용
         std = F.softplus(self.fc_std(x))
-        dist = Normal(mean,std)
-        action = dist.rsample()
-        log_prob = dist.log_prob(action)
+        Gaussian = Normal(mean,std)
+        action = Gaussian.rsample()
+        log_prob = Gaussian.log_prob(action)
+        # action을 -1 ~ 1 사이의 torque로 만들기 위한 과정
         real_action = torch.tanh(action)
         real_log_prob = log_prob - torch.log(1-torch.tanh(action).pow(2) + 1e-7)
         return real_action, real_log_prob
@@ -124,21 +128,21 @@ class Critic(nn.Module):
         loss.mean().backward()
         self.optimizer.step()
 
+    # DDPG soft_update 이용
     def soft_update(self, net_target):
         for param_target, param in zip(net_target.parameters(), self.parameters()):
             param_target.data.copy_(param_target.data * (1.0 - tau) + param.data * tau)
 
-def calc_target(pi, q1, q2, mini_batch):
+def get_target(pi, q1, q2, mini_batch):
     s, a, r, s_prime, done = mini_batch
-
     with torch.no_grad():
         a_prime, log_prob= pi(s_prime)
         entropy = -pi.log_alpha.exp() * log_prob
         q1_val, q2_val = q1(s_prime,a_prime), q2(s_prime,a_prime)
-        q1_q2 = torch.cat([q1_val, q2_val], dim=1)
-        min_q = torch.min(q1_q2, 1, keepdim=True)[0]
+        q = torch.cat([q1_val, q2_val], dim=1)
+        min_q = torch.min(q, 1, keepdim=True)[0]
         target = r + gamma * done * (min_q + entropy.mean())
-    return target
+    return target 
 
 def play_ant():
     env = gym.make('AntPyBulletEnv-v0')
@@ -159,7 +163,10 @@ def play_ant():
         score += r
         s = s_prime
         time.sleep(0.01)
-    print(score)
+
+        if done is True:
+            env.close()
+            print(score)
 
 def main():
     env = gym.make('AntPyBulletEnv-v0')
@@ -197,7 +204,7 @@ def main():
         if memory.size() > 1000:
             for i in range(30):
                 mini_batch = memory.sample(batch_size)
-                td_target = calc_target(pi, q1_target, q2_target, mini_batch)
+                td_target = get_target(pi, q1_target, q2_target, mini_batch)
                 q1.train_q(td_target, mini_batch)
                 q2.train_q(td_target, mini_batch)
                 pi.train_p(q1, q2, mini_batch)
@@ -205,7 +212,7 @@ def main():
                 q2.soft_update(q2_target)
 
         if episodes % print_interval==0 and episodes!=0:
-            print("number of episode :{}, avg score :{:.1f}, best score :{}, avg step :{}, alpha:{:.4f}".format(episodes, score/print_interval, best_score, step/print_interval, pi.log_alpha.exp()))
+            print("number of episode :{}, avg score :{:.1f}, best score :{:.1f}, avg step :{}, alpha:{:.4f}".format(episodes, score/print_interval, best_score, step/print_interval, pi.log_alpha.exp()))
             score = 0.0
             step = 0
 
@@ -214,5 +221,5 @@ def main():
 
     env.close()
 
-# main()
-play_ant()
+main()
+# play_ant()
