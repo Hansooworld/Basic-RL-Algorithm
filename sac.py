@@ -216,7 +216,7 @@ def main():
             score = 0.0
             step = 0
 
-        if score/print_interval > 2000:
+        if score/print_interval > 2500:
             torch.save(pi.state_dict(), 'weights/model_weights_{}.pth'.format(episodes))
 
     env.close()
