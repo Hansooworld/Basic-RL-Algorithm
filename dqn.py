@@ -101,7 +101,7 @@ def main():
             if done:
                 break
             
-            if score/print_interval > 500:
+            if score/print_interval > 480:
                 env.render()
                 torch.save(q.state_dict(), 'model_weights.pth')
 
