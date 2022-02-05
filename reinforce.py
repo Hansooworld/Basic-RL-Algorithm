@@ -38,7 +38,7 @@ def main():
     env = gym.make('CartPole-v1')
     pi = Policy()
     
-    for n_episode in range(10000):
+    for n_episode in range(1000):
         avg_t = 0
         # 원래 obs는 numpy 형태
         obs = env.reset()
