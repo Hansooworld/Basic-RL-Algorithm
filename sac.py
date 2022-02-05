@@ -19,9 +19,7 @@ gamma = 0.99
 batch_size = 256
 init_alpha = 0.1
 tau = 0.005
-# 8개의 action에 대해 나중에 mean() 해주기 때문에
-# 논문 parameter에 나온대로 -dim(A)로 설정해주지 않음
-target_entropy = -1
+target_entropy = -8
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -197,7 +195,7 @@ def main():
             bestsc += r
             step += 1
             s = s_prime
-        
+
         if bestsc > best_score:
             best_score = bestsc
         
@@ -212,7 +210,7 @@ def main():
                 q2.soft_update(q2_target)
 
         if episodes % print_interval==0 and episodes!=0:
-            print("number of episode :{}, avg score :{:.1f}, best score :{:.1f}, avg step :{}, alpha:{:.4f}".format(episodes, score/print_interval, best_score, step/print_interval, pi.log_alpha.exp()))
+            print("number of episode :{}, avg score :{:.1f}, best score :{:.1f}, avg step :{:.1f}, alpha:{:.4f}".format(episodes, score/print_interval, best_score, step/print_interval, pi.log_alpha.exp()))
             score = 0.0
             step = 0
 
